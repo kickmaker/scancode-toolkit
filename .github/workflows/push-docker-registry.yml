@@ -1,0 +1,27 @@
+name: Build and push docker image on new release creation
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to gitLab container registry
+        run: echo "${{ secrets.GITLAB_TOKEN }}" | docker login -u ${{ secrets.GITLAB_USERNAME }} --password-stdin ${{ secrets.GITLAB_REGISTRY_URL }}
+
+      - name: Build and push docker image
+        run: |
+          docker build -t ${{ secrets.GITLAB_REGISTRY_URL }}/$IMAGE_NAME:${{ github.event.release.tag_name }} .
+          docker push ${{ secrets.GITLAB_REGISTRY_URL }}/$IMAGE_NAME:${{ github.event.release.tag_name }}
+        env:
+          GITLAB_REGISTRY_URL: ${{ secrets.GITLAB_REGISTRY_URL }}
+          IMAGE_NAME: scancode-toolkit
+          TAG: ${{ github.event.release.tag_name }}
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}

@@ -1,0 +1,43 @@
+name: Nightly sync latest release from upstream
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Runs every night at midnight UTC (adjust as needed)
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Sync latest release
+        run: |
+          # Récupérer la dernière release du repository d'origine
+          LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" "https://api.github.com/repos/nexB/scancode-toolkit/releases/latest")
+
+          # Extraire les informations de la dernière release
+          release_name=$(echo "$LATEST_RELEASE" | jq -r '.name')
+          release_tag=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+          release_url=$(echo "$LATEST_RELEASE" | jq -r '.html_url')
+
+          # Récupérer la dernière release du repository d'origine
+          CURRENT_LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" "https://api.github.com/repos/kickmaker/scancode-toolkit/releases/latest")
+          current_release_tag=$(echo "$CURRENT_LATEST_RELEASE" | jq -r '.tag_name')
+
+          echo $release_tag
+          echo $current_release_tag
+          echo $release_name
+
+          # Check if the latest upstream release tag is different from the current fork release tag
+          if [ "$release_tag" != "$current_release_tag" ]; then
+            # Create the latest release in the fork repository
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              https://api.github.com/repos/kickmaker/scancode-toolkit/releases \
+              -d '{"tag_name": "'$release_tag'", "name": "'$release_name'", "html_url": "'$release_url'"}'
+          else
+            echo "Latest release tag is the same as the current release tag. Skipping release creation."
+          fi
